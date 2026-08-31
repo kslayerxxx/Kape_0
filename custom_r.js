@@ -9,13 +9,16 @@
   try {
     document.title = "RunningHub";
     Object.defineProperty(document, "title", {
-      get() { return "RunningHub"; },
-      set() {}
+      get() {
+        return "RunningHub";
+      },
+      set() {},
     });
     const titleEl = document.querySelector("title");
     if (titleEl) {
       new MutationObserver(() => {
-        if (titleEl.textContent !== "RunningHub") titleEl.textContent = "RunningHub";
+        if (titleEl.textContent !== "RunningHub")
+          titleEl.textContent = "RunningHub";
       }).observe(titleEl, { childList: true });
     }
   } catch (e) {}
@@ -23,8 +26,14 @@
   // Prevent auto-maximized / glitchy popups on workflow launch
   const origOpen = window.open;
   window.open = function (url, target, features) {
-    const isWorkflow = typeof url === "string" && (url.includes("task") || url.includes("workflow") || url.includes("comfy"));
-    const customFeatures = isWorkflow ? "width=1400,height=900,resizable=yes,scrollbars=yes" : features;
+    const isWorkflow =
+      typeof url === "string" &&
+      (url.includes("task") ||
+        url.includes("workflow") ||
+        url.includes("comfy"));
+    const customFeatures = isWorkflow
+      ? "width=1400,height=900,resizable=yes,scrollbars=yes"
+      : features;
     return origOpen.call(this, url, target, customFeatures || features);
   };
 
@@ -47,7 +56,7 @@
   const config = Object.assign(
     {},
     DEFAULT_CONFIG,
-    JSON.parse(localStorage.getItem(CONFIG_KEY) || "{}")
+    JSON.parse(localStorage.getItem(CONFIG_KEY) || "{}"),
   );
 
   function saveConfig() {
@@ -57,9 +66,15 @@
   // Sanitize localStorage custom scripts to prevent recursive lockups
   let customScripts = [];
   try {
-    const rawScripts = JSON.parse(localStorage.getItem(CUSTOM_SCRIPTS_KEY) || "[]");
+    const rawScripts = JSON.parse(
+      localStorage.getItem(CUSTOM_SCRIPTS_KEY) || "[]",
+    );
     customScripts = rawScripts.filter(
-      (s) => s && s.code && !s.code.includes("RH_QOL_CONFIG") && !s.code.includes("createFloatingMenu")
+      (s) =>
+        s &&
+        s.code &&
+        !s.code.includes("RH_QOL_CONFIG") &&
+        !s.code.includes("createFloatingMenu"),
     );
     if (rawScripts.length !== customScripts.length) {
       localStorage.setItem(CUSTOM_SCRIPTS_KEY, JSON.stringify(customScripts));
@@ -89,7 +104,8 @@
   // ==========================================
   window.importCookiesFromJSON = function (jsonInput) {
     try {
-      const cookies = typeof jsonInput === "string" ? JSON.parse(jsonInput) : jsonInput;
+      const cookies =
+        typeof jsonInput === "string" ? JSON.parse(jsonInput) : jsonInput;
       if (!Array.isArray(cookies)) {
         alert("Invalid format: Expected a JSON array of cookies.");
         return false;
@@ -107,7 +123,11 @@
         document.cookie = cookieStr;
 
         const lowerKey = c.name.toLowerCase();
-        if (lowerKey.includes("token") || lowerKey.includes("auth") || lowerKey.includes("session")) {
+        if (
+          lowerKey.includes("token") ||
+          lowerKey.includes("auth") ||
+          lowerKey.includes("session")
+        ) {
           try {
             localStorage.setItem(c.name, c.value);
             sessionStorage.setItem(c.name, c.value);
@@ -161,7 +181,9 @@
     window.fetch = function (input, init) {
       const url = typeof input === "string" ? input : input?.url || "";
       if (blockedHosts.some((h) => url.includes(h))) {
-        return Promise.resolve(new Response("", { status: 204, statusText: "No Content" }));
+        return Promise.resolve(
+          new Response("", { status: 204, statusText: "No Content" }),
+        );
       }
       return origFetch.apply(this, arguments);
     };
@@ -178,8 +200,9 @@
       iWin.api.interrupt();
     }
     const cancelBtn =
-      document.querySelector(".workflow-result-wrap .rh-cancel-btn, .rh-cancel-btn, [class*='cancel']") ||
-      iDoc.querySelector(".rh-cancel-btn, [class*='cancel']");
+      document.querySelector(
+        ".workflow-result-wrap .rh-cancel-btn, .rh-cancel-btn, [class*='cancel']",
+      ) || iDoc.querySelector(".rh-cancel-btn, [class*='cancel']");
     if (cancelBtn) cancelBtn.click();
   }
 
@@ -245,12 +268,17 @@
       iWin.LGraphCanvas.prototype.drawNode = function (node, ctx) {
         originalDrawNode.apply(this, arguments);
 
-        const isRunning = node.is_executing || node.running || this.node_executing === node;
-        const isBreakpoint = config.autoCancelBreakpoints && stopNodeIds.has(String(node.id));
+        const isRunning =
+          node.is_executing || node.running || this.node_executing === node;
+        const isBreakpoint =
+          config.autoCancelBreakpoints && stopNodeIds.has(String(node.id));
 
         if (config.vectorNodeIndicator && isRunning) {
           ctx.save();
-          const x = node.pos[0] - 6, y = node.pos[1] - 6, w = node.size[0] + 12, h = node.size[1] + 12;
+          const x = node.pos[0] - 6,
+            y = node.pos[1] - 6,
+            w = node.size[0] + 12,
+            h = node.size[1] + 12;
           ctx.lineWidth = 8;
           ctx.strokeStyle = "rgba(0, 255, 102, 0.25)";
           ctx.strokeRect(x - 2, y - 2, w + 4, h + 4);
@@ -263,10 +291,18 @@
           ctx.lineWidth = 5;
           ctx.strokeStyle = "#FFFFFF";
           ctx.beginPath();
-          ctx.moveTo(x, y + len); ctx.lineTo(x, y); ctx.lineTo(x + len, y);
-          ctx.moveTo(x + w - len, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + len);
-          ctx.moveTo(x, y + h - len); ctx.lineTo(x, y + h); ctx.lineTo(x + len, y + h);
-          ctx.moveTo(x + w - len, y + h); ctx.lineTo(x + w, y + h); ctx.moveTo(x + w, y + h - len);
+          ctx.moveTo(x, y + len);
+          ctx.lineTo(x, y);
+          ctx.lineTo(x + len, y);
+          ctx.moveTo(x + w - len, y);
+          ctx.lineTo(x + w, y);
+          ctx.lineTo(x + w, y + len);
+          ctx.moveTo(x, y + h - len);
+          ctx.lineTo(x, y + h);
+          ctx.lineTo(x + len, y + h);
+          ctx.moveTo(x + w - len, y + h);
+          ctx.lineTo(x + w, y + h);
+          ctx.moveTo(x + w, y + h - len);
           ctx.stroke();
           ctx.restore();
         }
@@ -275,7 +311,12 @@
           ctx.save();
           ctx.lineWidth = 4;
           ctx.strokeStyle = "#FF3344";
-          ctx.strokeRect(node.pos[0] - 2, node.pos[1] - 2, node.size[0] + 4, node.size[1] + 4);
+          ctx.strokeRect(
+            node.pos[0] - 2,
+            node.pos[1] - 2,
+            node.size[0] + 4,
+            node.size[1] + 4,
+          );
           ctx.fillStyle = "#FF3344";
           ctx.font = "bold 12px monospace";
           ctx.fillText("🛑 AUTO-CANCEL STOP", node.pos[0], node.pos[1] - 8);
@@ -284,19 +325,28 @@
       };
 
       // 2. Right-Click Breakpoint Menu
-      const originalGetNodeMenuOptions = iWin.LGraphCanvas.prototype.getNodeMenuOptions;
+      const originalGetNodeMenuOptions =
+        iWin.LGraphCanvas.prototype.getNodeMenuOptions;
       iWin.LGraphCanvas.prototype.getNodeMenuOptions = function (node) {
-        const options = originalGetNodeMenuOptions ? originalGetNodeMenuOptions.apply(this, arguments) : [];
+        const options = originalGetNodeMenuOptions
+          ? originalGetNodeMenuOptions.apply(this, arguments)
+          : [];
         const isStopNode = stopNodeIds.has(String(node.id));
-        
-        const hasExisting = options.some(o => o?.content?.includes("Auto-Cancel") || o?.content?.includes("Stop Breakpoint"));
+
+        const hasExisting = options.some(
+          (o) =>
+            o?.content?.includes("Auto-Cancel") ||
+            o?.content?.includes("Stop Breakpoint"),
+        );
         if (!hasExisting) {
           options.push({
-            content: isStopNode ? "🛑 Remove Stop Breakpoint" : "🛑 Set Auto-Cancel Breakpoint",
+            content: isStopNode
+              ? "🛑 Remove Stop Breakpoint"
+              : "🛑 Set Auto-Cancel Breakpoint",
             callback: () => {
               if (isStopNode) stopNodeIds.delete(String(node.id));
               else stopNodeIds.add(String(node.id));
-              
+
               if (iWin.app?.canvas) {
                 iWin.app.canvas.setDirty(true, true);
                 iWin.app.canvas.draw(true, true);
@@ -316,7 +366,11 @@
         if (!executingNodeId || executingNodeId === lastExecutedNodeId) return;
         lastExecutedNodeId = executingNodeId;
 
-        if (config.autoCenterRunningNode && iWin.app?.graph && iWin.app?.canvas?.centerOnNode) {
+        if (
+          config.autoCenterRunningNode &&
+          iWin.app?.graph &&
+          iWin.app?.canvas?.centerOnNode
+        ) {
           const node = iWin.app.graph.getNodeById(executingNodeId);
           if (node) iWin.app.canvas.centerOnNode(node);
         }
@@ -345,7 +399,9 @@
     const observer = new MutationObserver(() => {
       const taskWrap = document.querySelector(".workflow-result-wrap");
       if (taskWrap) {
-        const timeEl = taskWrap.querySelector(".rh-task-status > div, .rh-task-time, [class*='status']");
+        const timeEl = taskWrap.querySelector(
+          ".rh-task-status > div, .rh-task-time, [class*='status']",
+        );
         if (timeEl && timeEl.innerText.trim()) {
           timeDisplay.textContent = timeEl.innerText.trim();
           hud.style.display = "flex";
@@ -355,7 +411,11 @@
       hud.style.display = "none";
     });
 
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
   }
 
   // ==========================================
@@ -365,7 +425,9 @@
     if (document.getElementById("rh-floating-root")) return;
 
     const POS_KEY = "RH_FLOATING_POS";
-    const savedPos = JSON.parse(localStorage.getItem(POS_KEY) || '{"x": 20, "y": 20}');
+    const savedPos = JSON.parse(
+      localStorage.getItem(POS_KEY) || '{"x": 20, "y": 20}',
+    );
 
     const container = document.createElement("div");
     container.id = "rh-floating-root";
@@ -388,7 +450,7 @@
               <span>${key}</span>
               <input type="checkbox" data-core-key="${key}" ${config[key] ? "checked" : ""} style="cursor: pointer;">
             </label>
-          `
+          `,
             )
             .join("")}
         </div>
@@ -480,8 +542,10 @@
     const panel = container.querySelector("#rh-settings-panel");
 
     let isDragging = false;
-    let startX = 0, startY = 0;
-    let initialLeft = 0, initialTop = 0;
+    let startX = 0,
+      startY = 0;
+    let initialLeft = 0,
+      initialTop = 0;
     let dragDistance = 0;
 
     toggleBtn.addEventListener("mousedown", (e) => {
@@ -524,7 +588,10 @@
       document.removeEventListener("mouseup", onMouseUp);
 
       const rect = container.getBoundingClientRect();
-      localStorage.setItem(POS_KEY, JSON.stringify({ x: Math.round(rect.left), y: Math.round(rect.top) }));
+      localStorage.setItem(
+        POS_KEY,
+        JSON.stringify({ x: Math.round(rect.left), y: Math.round(rect.top) }),
+      );
       adjustPanelPosition();
     }
 
@@ -557,7 +624,7 @@
           </label>
           <span class="rh-delete-script" data-delete-idx="${idx}" style="cursor: pointer; color: #ff5555; font-size: 12px;" title="Delete">🗑️</span>
         </div>
-      `
+      `,
         )
         .join("");
 
@@ -572,11 +639,16 @@
 
     renderCustomScriptList();
 
-    closeBtn.onclick = () => { panel.style.display = "none"; };
-    importCookiesBtn.onclick = () => { pasteAndImportCookies(); };
+    closeBtn.onclick = () => {
+      panel.style.display = "none";
+    };
+    importCookiesBtn.onclick = () => {
+      pasteAndImportCookies();
+    };
 
     addScriptBtn.onclick = () => {
-      const name = newScriptName.value.trim() || `Script #${customScripts.length + 1}`;
+      const name =
+        newScriptName.value.trim() || `Script #${customScripts.length + 1}`;
       const code = newScriptCode.value.trim();
       if (!code) {
         alert("Please enter script code.");
