@@ -9,17 +9,17 @@
     enhancedWires: true,
     darkerGrid: true,
     autoCenterRunningNode: false,
-    autoCancelBreakpoints: true
+    autoCancelBreakpoints: true,
   };
 
   const config = Object.assign(
     {},
     DEFAULT_CONFIG,
-    JSON.parse(localStorage.getItem('RH_QOL_CONFIG') || '{}')
+    JSON.parse(localStorage.getItem("RH_QOL_CONFIG") || "{}"),
   );
 
   function saveConfig() {
-    localStorage.setItem('RH_QOL_CONFIG', JSON.stringify(config));
+    localStorage.setItem("RH_QOL_CONFIG", JSON.stringify(config));
   }
 
   // ==========================================
@@ -27,17 +27,20 @@
   // ==========================================
   if (config.blockTelemetry) {
     const blockedHosts = [
-      'google-analytics.com',
-      'googletagmanager.com',
-      'hm.baidu.com',
-      'clarity.ms',
-      'sentry.io'
+      "google-analytics.com",
+      "googletagmanager.com",
+      "hm.baidu.com",
+      "clarity.ms",
+      "sentry.io",
     ];
     const originalFetch = window.fetch;
     window.fetch = function (input, init) {
-      const url = typeof input === 'string' ? input : (input && input.url ? input.url : '');
-      if (blockedHosts.some(host => url.includes(host))) {
-        return Promise.resolve(new Response('', { status: 204, statusText: 'No Content' }));
+      const url =
+        typeof input === "string" ? input : input && input.url ? input.url : "";
+      if (blockedHosts.some((host) => url.includes(host))) {
+        return Promise.resolve(
+          new Response("", { status: 204, statusText: "No Content" }),
+        );
       }
       return originalFetch.apply(this, arguments);
     };
@@ -46,9 +49,9 @@
   // ==========================================
   // 3. UI Injections
   // ==========================================
-  const dynamicStyle = document.createElement('style');
-  dynamicStyle.id = 'rh-custom-styles';
-  let css = '';
+  const dynamicStyle = document.createElement("style");
+  dynamicStyle.id = "rh-custom-styles";
+  let css = "";
   if (config.darkerGrid) {
     css += `canvas#graph-canvas { background-color: #121214 !important; }`;
   }
@@ -62,27 +65,36 @@
   let lastExecutedNodeId = null;
 
   function triggerRunningHubCancel() {
-    if (window.api && typeof window.api.interrupt === 'function') {
+    if (window.api && typeof window.api.interrupt === "function") {
       window.api.interrupt();
     }
 
     const cancelBtn = document.querySelector(
-      '.workflow-result-wrap .rh-task-item .rh-cancel-btn'
+      ".workflow-result-wrap .rh-task-item .rh-cancel-btn",
     );
 
     if (cancelBtn) {
       cancelBtn.click();
-      console.log('[RH Breakpoint] Triggered click on .rh-cancel-btn');
+      console.log("[RH Breakpoint] Triggered click on .rh-cancel-btn");
       return;
     }
 
-    const sidebar = document.querySelector('.workflow-result-wrap');
-    const toggleSidebarBtn = document.querySelector('.workflow-result-wrap .hide-btn');
+    const sidebar = document.querySelector(".workflow-result-wrap");
+    const toggleSidebarBtn = document.querySelector(
+      ".workflow-result-wrap .hide-btn",
+    );
 
-    if (toggleSidebarBtn && (!sidebar || sidebar.offsetWidth === 0 || sidebar.classList.contains('is-hide'))) {
+    if (
+      toggleSidebarBtn &&
+      (!sidebar ||
+        sidebar.offsetWidth === 0 ||
+        sidebar.classList.contains("is-hide"))
+    ) {
       toggleSidebarBtn.click();
       setTimeout(() => {
-        const retryCancelBtn = document.querySelector('.workflow-result-wrap .rh-task-item .rh-cancel-btn');
+        const retryCancelBtn = document.querySelector(
+          ".workflow-result-wrap .rh-task-item .rh-cancel-btn",
+        );
         if (retryCancelBtn) retryCancelBtn.click();
       }, 150);
     }
@@ -96,7 +108,12 @@
         if (executingNodeId === lastExecutedNodeId) return;
         lastExecutedNodeId = executingNodeId;
 
-        if (config.autoCenterRunningNode && window.app && window.app.graph && window.app.canvas) {
+        if (
+          config.autoCenterRunningNode &&
+          window.app &&
+          window.app.graph &&
+          window.app.canvas
+        ) {
           const node = window.app.graph.getNodeById(executingNodeId);
           if (node && window.app.canvas.centerOnNode) {
             window.app.canvas.centerOnNode(node);
@@ -104,7 +121,9 @@
         }
 
         if (config.autoCancelBreakpoints && stopNodeIds.has(executingNodeId)) {
-          console.warn(`[RH Breakpoint] Reached stop node #${executingNodeId}. Halting execution.`);
+          console.warn(
+            `[RH Breakpoint] Reached stop node #${executingNodeId}. Halting execution.`,
+          );
           triggerRunningHubCancel();
         }
       });
@@ -115,7 +134,12 @@
   // 5. LiteGraph Canvas Engine Hooks
   // ==========================================
   function applyCanvasHooks() {
-    if (!window.LGraphCanvas || !window.LGraphCanvas.prototype || window.LGraphCanvas.prototype.__rh_patched) return;
+    if (
+      !window.LGraphCanvas ||
+      !window.LGraphCanvas.prototype ||
+      window.LGraphCanvas.prototype.__rh_patched
+    )
+      return;
     window.LGraphCanvas.prototype.__rh_patched = true;
 
     // A. Vector Indicator + Breakpoint Stop Badge
@@ -123,8 +147,10 @@
     window.LGraphCanvas.prototype.drawNode = function (node, ctx) {
       originalDrawNode.apply(this, arguments);
 
-      const isExecuting = node.is_executing || node.running || (this.node_executing === node);
-      const isBreakpoint = config.autoCancelBreakpoints && stopNodeIds.has(String(node.id));
+      const isExecuting =
+        node.is_executing || node.running || this.node_executing === node;
+      const isBreakpoint =
+        config.autoCancelBreakpoints && stopNodeIds.has(String(node.id));
 
       if (config.vectorNodeIndicator && isExecuting) {
         ctx.save();
@@ -146,10 +172,18 @@
         ctx.strokeStyle = "#FFFFFF";
 
         ctx.beginPath();
-        ctx.moveTo(x, y + len); ctx.lineTo(x, y); ctx.lineTo(x + len, y);
-        ctx.moveTo(x + w - len, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + len);
-        ctx.moveTo(x, y + h - len); ctx.lineTo(x, y + h); ctx.lineTo(x + len, y + h);
-        ctx.moveTo(x + w - len, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - len);
+        ctx.moveTo(x, y + len);
+        ctx.lineTo(x, y);
+        ctx.lineTo(x + len, y);
+        ctx.moveTo(x + w - len, y);
+        ctx.lineTo(x + w, y);
+        ctx.lineTo(x + w, y + len);
+        ctx.moveTo(x, y + h - len);
+        ctx.lineTo(x, y + h);
+        ctx.lineTo(x + len, y + h);
+        ctx.moveTo(x + w - len, y + h);
+        ctx.lineTo(x + w, y + h);
+        ctx.lineTo(x + w, y + h - len);
         ctx.stroke();
         ctx.restore();
       }
@@ -158,7 +192,12 @@
         ctx.save();
         ctx.lineWidth = 4;
         ctx.strokeStyle = "#FF3344";
-        ctx.strokeRect(node.pos[0] - 2, node.pos[1] - 2, node.size[0] + 4, node.size[1] + 4);
+        ctx.strokeRect(
+          node.pos[0] - 2,
+          node.pos[1] - 2,
+          node.size[0] + 4,
+          node.size[1] + 4,
+        );
 
         ctx.fillStyle = "#FF3344";
         ctx.font = "bold 11px sans-serif";
@@ -168,13 +207,18 @@
     };
 
     // B. Context Menu Hook
-    const originalGetNodeMenuOptions = window.LGraphCanvas.prototype.getNodeMenuOptions;
+    const originalGetNodeMenuOptions =
+      window.LGraphCanvas.prototype.getNodeMenuOptions;
     window.LGraphCanvas.prototype.getNodeMenuOptions = function (node) {
-      const options = originalGetNodeMenuOptions ? originalGetNodeMenuOptions.apply(this, arguments) : [];
+      const options = originalGetNodeMenuOptions
+        ? originalGetNodeMenuOptions.apply(this, arguments)
+        : [];
       const isStopNode = stopNodeIds.has(String(node.id));
 
       options.push({
-        content: isStopNode ? "🛑 Remove Stop Breakpoint" : "🛑 Set Auto-Cancel Breakpoint",
+        content: isStopNode
+          ? "🛑 Remove Stop Breakpoint"
+          : "🛑 Set Auto-Cancel Breakpoint",
         callback: () => {
           if (isStopNode) {
             stopNodeIds.delete(String(node.id));
@@ -184,7 +228,7 @@
           if (window.app && window.app.canvas) {
             window.app.canvas.setDirty(true, true);
           }
-        }
+        },
       });
       return options;
     };
@@ -206,8 +250,8 @@
   // 6. Floating UI Settings Overlay
   // ==========================================
   function createFloatingMenu() {
-    const container = document.createElement('div');
-    container.id = 'rh-floating-root';
+    const container = document.createElement("div");
+    container.id = "rh-floating-root";
     container.innerHTML = `
       <div id="rh-toggle-btn" title="RunningHub QoL Settings">⚙️</div>
       <div id="rh-settings-panel" style="display: none;">
@@ -215,17 +259,21 @@
           <span>QoL Settings</span>
           <span id="rh-close-btn" style="cursor:pointer; color:#777; font-size: 16px;">✕</span>
         </div>
-        ${Object.keys(DEFAULT_CONFIG).map(key => `
+        ${Object.keys(DEFAULT_CONFIG)
+          .map(
+            (key) => `
           <label style="display: flex; justify-content: space-between; align-items: center; margin: 8px 0; font-size: 12px; cursor: pointer;">
             <span>${key}</span>
-            <input type="checkbox" data-key="${key}" ${config[key] ? 'checked' : ''} style="cursor: pointer;">
+            <input type="checkbox" data-key="${key}" ${config[key] ? "checked" : ""} style="cursor: pointer;">
           </label>
-        `).join('')}
+        `,
+          )
+          .join("")}
         <button id="rh-reload-btn" style="width: 100%; margin-top: 10px; padding: 6px; background: #00AA55; border: none; color: #fff; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Apply & Reload</button>
       </div>
     `;
 
-    const menuStyle = document.createElement('style');
+    const menuStyle = document.createElement("style");
     menuStyle.textContent = `
       #rh-floating-root {
         position: fixed;
@@ -268,18 +316,20 @@
     document.head.appendChild(menuStyle);
     document.body.appendChild(container);
 
-    const toggleBtn = container.querySelector('#rh-toggle-btn');
-    const panel = container.querySelector('#rh-settings-panel');
-    const closeBtn = container.querySelector('#rh-close-btn');
-    const reloadBtn = container.querySelector('#rh-reload-btn');
+    const toggleBtn = container.querySelector("#rh-toggle-btn");
+    const panel = container.querySelector("#rh-settings-panel");
+    const closeBtn = container.querySelector("#rh-close-btn");
+    const reloadBtn = container.querySelector("#rh-reload-btn");
 
     toggleBtn.onclick = () => {
-      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+      panel.style.display = panel.style.display === "none" ? "block" : "none";
     };
-    closeBtn.onclick = () => { panel.style.display = 'none'; };
+    closeBtn.onclick = () => {
+      panel.style.display = "none";
+    };
 
     reloadBtn.onclick = () => {
-      container.querySelectorAll('input[type="checkbox"]').forEach(input => {
+      container.querySelectorAll('input[type="checkbox"]').forEach((input) => {
         config[input.dataset.key] = input.checked;
       });
       saveConfig();
@@ -291,15 +341,16 @@
   // 7. Route & View Awareness + Init Poller
   // ==========================================
   function isWorkflowCanvasActive() {
-    const canvasElement = document.querySelector('canvas#graph-canvas');
-    const isWorkflowRoute = !location.pathname.includes('/explore') && 
-                            !location.pathname.includes('/ai-application') &&
-                            !location.pathname.includes('/model');
+    const canvasElement = document.querySelector("canvas#graph-canvas");
+    const isWorkflowRoute =
+      !location.pathname.includes("/explore") &&
+      !location.pathname.includes("/ai-application") &&
+      !location.pathname.includes("/model");
     return !!(canvasElement && isWorkflowRoute);
   }
 
   const initTimer = setInterval(() => {
-    if (document.body && !document.getElementById('rh-floating-root')) {
+    if (document.body && !document.getElementById("rh-floating-root")) {
       createFloatingMenu();
     }
     if (window.LGraphCanvas) {
@@ -309,14 +360,14 @@
       attachExecutionWatcher();
     }
 
-    const floatingRoot = document.getElementById('rh-floating-root');
+    const floatingRoot = document.getElementById("rh-floating-root");
     if (floatingRoot) {
       if (isWorkflowCanvasActive()) {
-        floatingRoot.style.display = 'block';
+        floatingRoot.style.display = "block";
       } else {
-        floatingRoot.style.display = 'none';
-        const panel = document.getElementById('rh-settings-panel');
-        if (panel) panel.style.display = 'none';
+        floatingRoot.style.display = "none";
+        const panel = document.getElementById("rh-settings-panel");
+        if (panel) panel.style.display = "none";
       }
     }
   }, 500);
