@@ -212,13 +212,29 @@ jobs:
           Write-Host "Running: node dist/cli.js $($args -join ' ')"
           node dist/cli.js $args
 
-          # Search and copy any produced .exe or .msi directly to root
-          Get-ChildItem -Path "src-tauri/target/release" -Filter "*.exe" -File | Where-Object { $_.Name -notmatch '\.d\.exe$' } | ForEach-Object {
-            Copy-Item $_.FullName -Destination "./$($_.Name)" -Force
+          # 1. Create a dedicated staging directory
+          New-Item -ItemType Directory -Force -Path "./dist-windows"
+
+          # 2. Collect root level outputs (if Pake placed them here)
+          Get-ChildItem -Path "." -Filter "*.exe" -File | ForEach-Object { Copy-Item $_.FullName -Destination "./dist-windows/" -Force }
+          Get-ChildItem -Path "." -Filter "*.msi" -File | ForEach-Object { Copy-Item $_.FullName -Destination "./dist-windows/" -Force }
+
+          # 3. Collect from src-tauri release outputs
+          if (Test-Path "src-tauri/target/release") {
+            Get-ChildItem -Path "src-tauri/target/release" -Include "*.exe","*.msi" -Recurse -File | Where-Object { 
+              $_.FullName -notmatch "build" -and 
+              $_.FullName -notmatch "deps" -and 
+              $_.FullName -notmatch "examples" -and 
+              $_.FullName -notmatch "incremental" -and 
+              $_.Name -notmatch "\.d\.exe$" 
+            } | ForEach-Object {
+              Write-Host "Staging binary: $($_.FullName)"
+              Copy-Item $_.FullName -Destination "./dist-windows/" -Force
+            }
           }
-          Get-ChildItem -Path "src-tauri/target/release" -Filter "*.msi" -Recurse -File | ForEach-Object {
-            Copy-Item $_.FullName -Destination "./$($_.Name)" -Force
-          }
+
+          Write-Host "=== Staged Artifacts ==="
+          Get-ChildItem -Path "./dist-windows"
 
           git checkout -- src-tauri/Cargo.lock
 
@@ -271,13 +287,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.name }}-Windows
-          path: |
-            ./*.exe
-            ./*.msi
-            src-tauri/target/release/*.exe
-            src-tauri/target/release/bundle/msi/*.msi
-            src-tauri/target/release/bundle/nsis/*.exe
-          if-no-files-found: warn
+          path: dist-windows/*
           retention-days: 3
 
       - name: Rust cache store
