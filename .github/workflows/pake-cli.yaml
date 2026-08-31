@@ -105,8 +105,7 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            src-tauri/target/
-          key: ${{ runner.os }}-cargo-pake-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-pake-v2-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build App (Linux/macOS)
         if: runner.os != 'Windows'
@@ -212,23 +211,27 @@ jobs:
           Write-Host "Running: node dist/cli.js $($args -join ' ')"
           node dist/cli.js $args
 
-          # 1. Create a dedicated staging directory
+          # Check if node command failed
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Pake build failed with exit code $LASTEXITCODE"
+            exit $LASTEXITCODE
+          }
+
+          # Create staging folder and collect binaries
           New-Item -ItemType Directory -Force -Path "./dist-windows"
 
-          # 2. Collect root level outputs (if Pake placed them here)
           Get-ChildItem -Path "." -Filter "*.exe" -File | ForEach-Object { Copy-Item $_.FullName -Destination "./dist-windows/" -Force }
           Get-ChildItem -Path "." -Filter "*.msi" -File | ForEach-Object { Copy-Item $_.FullName -Destination "./dist-windows/" -Force }
 
-          # 3. Collect from src-tauri release outputs
-          if (Test-Path "src-tauri/target/release") {
-            Get-ChildItem -Path "src-tauri/target/release" -Include "*.exe","*.msi" -Recurse -File | Where-Object { 
+          if (Test-Path "src-tauri/target") {
+            Get-ChildItem -Path "src-tauri/target" -Include "*.exe","*.msi" -Recurse -File | Where-Object { 
               $_.FullName -notmatch "build" -and 
               $_.FullName -notmatch "deps" -and 
               $_.FullName -notmatch "examples" -and 
               $_.FullName -notmatch "incremental" -and 
               $_.Name -notmatch "\.d\.exe$" 
             } | ForEach-Object {
-              Write-Host "Staging binary: $($_.FullName)"
+              Write-Host "Found binary: $($_.FullName)"
               Copy-Item $_.FullName -Destination "./dist-windows/" -Force
             }
           }
@@ -299,5 +302,4 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            src-tauri/target/
-          key: ${{ runner.os }}-cargo-pake-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-pake-v2-${{ hashFiles('**/Cargo.lock') }}
