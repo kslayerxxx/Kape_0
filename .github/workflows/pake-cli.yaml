@@ -171,7 +171,7 @@ jobs:
           $args += "--debug"
           $args += "--show-system-tray"
           $args += "--targets", "msi,nsis"
-          $args += "--inject", "custom.js"
+          $args += "--inject", "custom_r.js"
 
           if ("${{ inputs.icon }}" -ne "") {
             $args += "--icon", "${{ inputs.icon }}"
