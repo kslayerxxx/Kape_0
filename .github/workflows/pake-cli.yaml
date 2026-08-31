@@ -10,7 +10,7 @@ on:
       platform:
         description: "Platform"
         required: true
-        default: "macos-latest"
+        default: "windows-latest"
         type: choice
         options:
           - "windows-latest"
@@ -57,7 +57,7 @@ on:
         description: "Allow sites to open new windows"
         required: false
         type: boolean
-        default: false
+        default: true
       multi_arch:
         description: "Universal binary (macOS only)"
         required: false
@@ -168,6 +168,10 @@ jobs:
         shell: pwsh
         run: |
           $args = "${{ inputs.url }}", "--name", "${{ inputs.name }}"
+          $args += "--debug"
+          $args += "--show-system-tray"
+          $args += "--targets", "msi,nsis"
+          $args += "--inject", "custom.js"
 
           if ("${{ inputs.icon }}" -ne "") {
             $args += "--icon", "${{ inputs.icon }}"
@@ -254,12 +258,18 @@ jobs:
           retention-days: 3
           if-no-files-found: ignore
 
-      - name: Upload MSI (Windows)
+      - name: Upload Windows Packages (MSI & EXE)
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v6
         with:
           name: ${{ inputs.name }}-Windows
-          path: ${{ inputs.name }}.msi
+          path: |
+            ${{ inputs.name }}.exe
+            ${{ inputs.name }}.msi
+            src-tauri/target/release/*.exe
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: warn
           retention-days: 3
 
       - name: Rust cache store
