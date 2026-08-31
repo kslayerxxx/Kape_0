@@ -15,7 +15,7 @@
   const config = Object.assign(
     {},
     DEFAULT_CONFIG,
-    JSON.parse(localStorage.getItem("RH_QOL_CONFIG") || "{}"),
+    JSON.parse(localStorage.getItem("RH_QOL_CONFIG") || "{}")
   );
 
   function saveConfig() {
@@ -23,7 +23,82 @@
   }
 
   // ==========================================
-  // 2. Telemetry & Analytics Blocker
+  // 2. Cookie & Session Token JSON Importer
+  // ==========================================
+  window.importCookiesFromJSON = function (jsonInput) {
+    try {
+      const cookies = typeof jsonInput === "string" ? JSON.parse(jsonInput) : jsonInput;
+      if (!Array.isArray(cookies)) {
+        alert("Invalid format: Expected a JSON array of cookies.");
+        return false;
+      }
+
+      let count = 0;
+      cookies.forEach((c) => {
+        if (!c.name || c.value === undefined) return;
+        const name = encodeURIComponent(c.name.trim());
+        const value = encodeURIComponent(c.value.trim());
+
+        // 1. Set standard cookie
+        let cookieStr = `${name}=${value}; path=/; max-age=31536000; SameSite=Lax`;
+        if (location.hostname.includes("runninghub")) {
+          cookieStr += "; domain=.runninghub.ai";
+        }
+        document.cookie = cookieStr;
+
+        // 2. Set token directly into Web Storage for Vue frontend auth sync
+        const lowerKey = c.name.toLowerCase();
+        if (
+          lowerKey.includes("token") ||
+          lowerKey.includes("auth") ||
+          lowerKey.includes("session")
+        ) {
+          try {
+            localStorage.setItem(c.name, c.value);
+            sessionStorage.setItem(c.name, c.value);
+          } catch (e) {}
+        }
+
+        count++;
+      });
+
+      console.log(`[RH Importer] Imported ${count} cookies/tokens successfully.`);
+      location.href = "https://www.runninghub.ai/";
+      return true;
+    } catch (err) {
+      alert("Failed to parse Cookie JSON: " + err.message);
+      return false;
+    }
+  };
+
+  async function pasteAndImportCookies() {
+    try {
+      let text = "";
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        text = await navigator.clipboard.readText();
+      }
+      if (!text || !text.trim().startsWith("[")) {
+        text = prompt("Paste your exported Cookie JSON array here:");
+      }
+      if (text) {
+        window.importCookiesFromJSON(text);
+      }
+    } catch (e) {
+      const manualText = prompt("Paste your exported Cookie JSON array here:");
+      if (manualText) window.importCookiesFromJSON(manualText);
+    }
+  }
+
+  // Global Hotkey: Works on Login Screen, Home, and Canvas
+  window.addEventListener("keydown", (e) => {
+    if (e.ctrlKey && e.shiftKey && e.code === "KeyV") {
+      e.preventDefault();
+      pasteAndImportCookies();
+    }
+  });
+
+  // ==========================================
+  // 3. Telemetry Blocker
   // ==========================================
   if (config.blockTelemetry) {
     const blockedHosts = [
@@ -39,7 +114,7 @@
         typeof input === "string" ? input : input && input.url ? input.url : "";
       if (blockedHosts.some((host) => url.includes(host))) {
         return Promise.resolve(
-          new Response("", { status: 204, statusText: "No Content" }),
+          new Response("", { status: 204, statusText: "No Content" })
         );
       }
       return originalFetch.apply(this, arguments);
@@ -47,7 +122,7 @@
   }
 
   // ==========================================
-  // 3. UI Injections
+  // 4. UI Injections (Dark Grid)
   // ==========================================
   const dynamicStyle = document.createElement("style");
   dynamicStyle.id = "rh-custom-styles";
@@ -59,7 +134,7 @@
   document.head.appendChild(dynamicStyle);
 
   // ==========================================
-  // 4. RunningHub Execution & Cancel Logic
+  // 5. RunningHub Execution & Cancel Logic
   // ==========================================
   const stopNodeIds = new Set();
   let lastExecutedNodeId = null;
@@ -70,18 +145,17 @@
     }
 
     const cancelBtn = document.querySelector(
-      ".workflow-result-wrap .rh-task-item .rh-cancel-btn",
+      ".workflow-result-wrap .rh-task-item .rh-cancel-btn"
     );
 
     if (cancelBtn) {
       cancelBtn.click();
-      console.log("[RH Breakpoint] Triggered click on .rh-cancel-btn");
       return;
     }
 
     const sidebar = document.querySelector(".workflow-result-wrap");
     const toggleSidebarBtn = document.querySelector(
-      ".workflow-result-wrap .hide-btn",
+      ".workflow-result-wrap .hide-btn"
     );
 
     if (
@@ -93,7 +167,7 @@
       toggleSidebarBtn.click();
       setTimeout(() => {
         const retryCancelBtn = document.querySelector(
-          ".workflow-result-wrap .rh-task-item .rh-cancel-btn",
+          ".workflow-result-wrap .rh-task-item .rh-cancel-btn"
         );
         if (retryCancelBtn) retryCancelBtn.click();
       }, 150);
@@ -122,7 +196,7 @@
 
         if (config.autoCancelBreakpoints && stopNodeIds.has(executingNodeId)) {
           console.warn(
-            `[RH Breakpoint] Reached stop node #${executingNodeId}. Halting execution.`,
+            `[RH Breakpoint] Reached stop node #${executingNodeId}. Halting execution.`
           );
           triggerRunningHubCancel();
         }
@@ -131,7 +205,7 @@
   }
 
   // ==========================================
-  // 5. LiteGraph Canvas Engine Hooks
+  // 6. LiteGraph Canvas Prototype Hooks
   // ==========================================
   function applyCanvasHooks() {
     if (
@@ -142,7 +216,7 @@
       return;
     window.LGraphCanvas.prototype.__rh_patched = true;
 
-    // A. Vector Indicator + Breakpoint Stop Badge
+    // Vector border indicator + Breakpoint stop badge
     const originalDrawNode = window.LGraphCanvas.prototype.drawNode;
     window.LGraphCanvas.prototype.drawNode = function (node, ctx) {
       originalDrawNode.apply(this, arguments);
@@ -172,18 +246,10 @@
         ctx.strokeStyle = "#FFFFFF";
 
         ctx.beginPath();
-        ctx.moveTo(x, y + len);
-        ctx.lineTo(x, y);
-        ctx.lineTo(x + len, y);
-        ctx.moveTo(x + w - len, y);
-        ctx.lineTo(x + w, y);
-        ctx.lineTo(x + w, y + len);
-        ctx.moveTo(x + h - len);
-        ctx.lineTo(x, y + h);
-        ctx.lineTo(x + len, y + h);
-        ctx.moveTo(x + w - len, y + h);
-        ctx.lineTo(x + w, y + h);
-        ctx.lineTo(x + w, y + h - len);
+        ctx.moveTo(x, y + len); ctx.lineTo(x, y); ctx.lineTo(x + len, y);
+        ctx.moveTo(x + w - len, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + len);
+        ctx.moveTo(x + h - len); ctx.lineTo(x, y + h); ctx.lineTo(x + len, y + h);
+        ctx.moveTo(x + w - len, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - len);
         ctx.stroke();
         ctx.restore();
       }
@@ -196,9 +262,8 @@
           node.pos[0] - 2,
           node.pos[1] - 2,
           node.size[0] + 4,
-          node.size[1] + 4,
+          node.size[1] + 4
         );
-
         ctx.fillStyle = "#FF3344";
         ctx.font = "bold 11px sans-serif";
         ctx.fillText("🛑 AUTO-CANCEL STOP", node.pos[0], node.pos[1] - 8);
@@ -206,7 +271,7 @@
       }
     };
 
-    // B. Context Menu Hook
+    // Right-click menu option for breakpoints
     const originalGetNodeMenuOptions =
       window.LGraphCanvas.prototype.getNodeMenuOptions;
     window.LGraphCanvas.prototype.getNodeMenuOptions = function (node) {
@@ -233,27 +298,28 @@
       return options;
     };
 
-    // C. Low-Spec GPU Optimization
+    // Hardware rendering optimizations
     if (config.fpsOptimization) {
       window.LGraphCanvas.prototype.render_shadows = false;
       window.LGraphCanvas.prototype.render_connections_border = false;
       window.LGraphCanvas.prototype.highquality_render = false;
     }
 
-    // D. Spline Rendering
     if (config.enhancedWires && window.LiteGraph) {
       window.LiteGraph.LINK_RENDER_MODE = 2;
     }
   }
 
   // ==========================================
-  // 6. Floating UI Settings Overlay
+  // 7. Global Floating Settings Gear (Always Visible)
   // ==========================================
   function createFloatingMenu() {
+    if (document.getElementById("rh-floating-root")) return;
+
     const container = document.createElement("div");
     container.id = "rh-floating-root";
     container.innerHTML = `
-      <div id="rh-toggle-btn" title="RunningHub QoL Settings">⚙️</div>
+      <div id="rh-toggle-btn" title="RunningHub Settings / Cookie Import">⚙️</div>
       <div id="rh-settings-panel" style="display: none;">
         <div style="font-weight: bold; margin-bottom: 10px; font-size: 13px; border-bottom: 1px solid #333; padding-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
           <span>QoL Settings</span>
@@ -266,10 +332,11 @@
             <span>${key}</span>
             <input type="checkbox" data-key="${key}" ${config[key] ? "checked" : ""} style="cursor: pointer;">
           </label>
-        `,
+        `
           )
           .join("")}
-        <button id="rh-reload-btn" style="width: 100%; margin-top: 10px; padding: 6px; background: #00AA55; border: none; color: #fff; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Apply & Reload</button>
+        <button id="rh-import-cookies-btn" style="width: 100%; margin-top: 8px; padding: 6px; background: #2b2b36; border: 1px solid #00FF66; color: #00FF66; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold;">📋 Paste Cookies (JSON)</button>
+        <button id="rh-reload-btn" style="width: 100%; margin-top: 6px; padding: 6px; background: #00AA55; border: none; color: #fff; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Apply & Reload</button>
       </div>
     `;
 
@@ -320,12 +387,17 @@
     const panel = container.querySelector("#rh-settings-panel");
     const closeBtn = container.querySelector("#rh-close-btn");
     const reloadBtn = container.querySelector("#rh-reload-btn");
+    const importCookiesBtn = container.querySelector("#rh-import-cookies-btn");
 
     toggleBtn.onclick = () => {
       panel.style.display = panel.style.display === "none" ? "block" : "none";
     };
     closeBtn.onclick = () => {
       panel.style.display = "none";
+    };
+
+    importCookiesBtn.onclick = () => {
+      pasteAndImportCookies();
     };
 
     reloadBtn.onclick = () => {
@@ -338,9 +410,11 @@
   }
 
   // ==========================================
-  // 7. Bottom-Center Task HUD Timer (Zero-Lag)
+  // 8. Task HUD Timer (Zero-Lag Observer)
   // ==========================================
-  (function initRunningHubTimerHUD() {
+  function initRunningHubTimerHUD() {
+    if (document.getElementById("rh-timer-hud")) return;
+
     const hud = document.createElement("div");
     hud.id = "rh-timer-hud";
     hud.innerHTML = `<span class="hud-icon">⏱️</span><span id="rh-hud-time">00:00</span>`;
@@ -398,64 +472,46 @@
       }
     }
 
-    function attachTimerObserver() {
-      const listWrap =
-        document.querySelector(".workflow-result-wrap .list-wrap") ||
-        document.body;
+    const listWrap =
+      document.querySelector(".workflow-result-wrap .list-wrap") ||
+      document.body;
 
-      if (observer) observer.disconnect();
+    observer = new MutationObserver(() => {
+      syncTimer();
+    });
 
-      observer = new MutationObserver(() => {
-        syncTimer();
-      });
-
-      observer.observe(listWrap, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-      });
-    }
-
-    const timerInit = setInterval(() => {
-      if (document.querySelector(".workflow-result-wrap")) {
-        attachTimerObserver();
-        clearInterval(timerInit);
-      }
-    }, 1000);
-  })();
-
-  // ==========================================
-  // 8. Route & View Awareness + Init Poller
-  // ==========================================
-  function isWorkflowCanvasActive() {
-    const canvasElement = document.querySelector("canvas#graph-canvas");
-    const isWorkflowRoute =
-      !location.pathname.includes("/explore") &&
-      !location.pathname.includes("/ai-application") &&
-      !location.pathname.includes("/model");
-    return !!(canvasElement && isWorkflowRoute);
+    observer.observe(listWrap, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
   }
 
-  const initTimer = setInterval(() => {
+  // ==========================================
+  // 9. Persistent Engine Lifecycle Hook
+  // ==========================================
+  const lifecycleWatcher = setInterval(() => {
+    // 1. Mount gear menu once
     if (document.body && !document.getElementById("rh-floating-root")) {
       createFloatingMenu();
     }
-    if (window.LGraphCanvas) {
+
+    // 2. Attach canvas hooks when LiteGraph engine initializes
+    if (window.LGraphCanvas && !window.LGraphCanvas.prototype.__rh_patched) {
       applyCanvasHooks();
     }
-    if (window.api) {
+
+    // 3. Attach execution watcher when websocket API initializes
+    if (window.api && !window.__rh_exec_hooked) {
       attachExecutionWatcher();
     }
 
-    const floatingRoot = document.getElementById("rh-floating-root");
-    if (floatingRoot) {
-      if (isWorkflowCanvasActive()) {
-        floatingRoot.style.display = "block";
-      } else {
-        floatingRoot.style.display = "none";
-        const panel = document.getElementById("rh-settings-panel");
-        if (panel) panel.style.display = "none";
-      }
+    // 4. Attach timer observer when task sidebar mounts
+    if (
+      document.querySelector(".workflow-result-wrap") &&
+      !document.getElementById("rh-timer-hud")
+    ) {
+      initRunningHubTimerHUD();
     }
   }, 500);
 })();
