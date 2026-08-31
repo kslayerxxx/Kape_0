@@ -159,6 +159,8 @@ jobs:
             ARGS+=("--targets" "${{ inputs.targets }}")
           fi
 
+          ARGS+=("--inject" "custom_r.js")
+
           echo "Running: node dist/cli.js ${ARGS[@]}"
           node dist/cli.js "${ARGS[@]}"
 
@@ -170,7 +172,6 @@ jobs:
           $args = "${{ inputs.url }}", "--name", "${{ inputs.name }}"
           $args += "--debug"
           $args += "--show-system-tray"
-          $args += "--targets", "msi,nsis"
           $args += "--inject", "custom_r.js"
 
           if ("${{ inputs.icon }}" -ne "") {
@@ -211,6 +212,11 @@ jobs:
 
           Write-Host "Running: node dist/cli.js $($args -join ' ')"
           node dist/cli.js $args
+
+          # Copy raw release executable directly to workspace root
+          if (Test-Path "src-tauri/target/release/${{ inputs.name }}.exe") {
+            Copy-Item "src-tauri/target/release/${{ inputs.name }}.exe" -Destination "./${{ inputs.name }}.exe" -Force
+          }
 
           git checkout -- src-tauri/Cargo.lock
 
@@ -258,17 +264,16 @@ jobs:
           retention-days: 3
           if-no-files-found: ignore
 
-      - name: Upload Windows Packages (MSI & EXE)
+      - name: Upload Windows Packages (MSI & Standalone EXE)
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v6
         with:
           name: ${{ inputs.name }}-Windows
           path: |
-            ${{ inputs.name }}.exe
-            ${{ inputs.name }}.msi
-            src-tauri/target/release/*.exe
+            ./${{ inputs.name }}.exe
+            ./${{ inputs.name }}.msi
+            src-tauri/target/release/${{ inputs.name }}.exe
             src-tauri/target/release/bundle/msi/*.msi
-            src-tauri/target/release/bundle/nsis/*.exe
           if-no-files-found: warn
           retention-days: 3
 
