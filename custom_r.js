@@ -15,7 +15,7 @@
   const config = Object.assign(
     {},
     DEFAULT_CONFIG,
-    JSON.parse(localStorage.getItem("RH_QOL_CONFIG") || "{}")
+    JSON.parse(localStorage.getItem("RH_QOL_CONFIG") || "{}"),
   );
 
   function saveConfig() {
@@ -27,7 +27,8 @@
   // ==========================================
   window.importCookiesFromJSON = function (jsonInput) {
     try {
-      const cookies = typeof jsonInput === "string" ? JSON.parse(jsonInput) : jsonInput;
+      const cookies =
+        typeof jsonInput === "string" ? JSON.parse(jsonInput) : jsonInput;
       if (!Array.isArray(cookies)) {
         alert("Invalid format: Expected a JSON array of cookies.");
         return false;
@@ -62,7 +63,9 @@
         count++;
       });
 
-      console.log(`[RH Importer] Imported ${count} cookies/tokens successfully.`);
+      console.log(
+        `[RH Importer] Imported ${count} cookies/tokens successfully.`,
+      );
       location.href = "https://www.runninghub.ai/";
       return true;
     } catch (err) {
@@ -114,7 +117,7 @@
         typeof input === "string" ? input : input && input.url ? input.url : "";
       if (blockedHosts.some((host) => url.includes(host))) {
         return Promise.resolve(
-          new Response("", { status: 204, statusText: "No Content" })
+          new Response("", { status: 204, statusText: "No Content" }),
         );
       }
       return originalFetch.apply(this, arguments);
@@ -145,7 +148,7 @@
     }
 
     const cancelBtn = document.querySelector(
-      ".workflow-result-wrap .rh-task-item .rh-cancel-btn"
+      ".workflow-result-wrap .rh-task-item .rh-cancel-btn",
     );
 
     if (cancelBtn) {
@@ -155,7 +158,7 @@
 
     const sidebar = document.querySelector(".workflow-result-wrap");
     const toggleSidebarBtn = document.querySelector(
-      ".workflow-result-wrap .hide-btn"
+      ".workflow-result-wrap .hide-btn",
     );
 
     if (
@@ -167,7 +170,7 @@
       toggleSidebarBtn.click();
       setTimeout(() => {
         const retryCancelBtn = document.querySelector(
-          ".workflow-result-wrap .rh-task-item .rh-cancel-btn"
+          ".workflow-result-wrap .rh-task-item .rh-cancel-btn",
         );
         if (retryCancelBtn) retryCancelBtn.click();
       }, 150);
@@ -196,7 +199,7 @@
 
         if (config.autoCancelBreakpoints && stopNodeIds.has(executingNodeId)) {
           console.warn(
-            `[RH Breakpoint] Reached stop node #${executingNodeId}. Halting execution.`
+            `[RH Breakpoint] Reached stop node #${executingNodeId}. Halting execution.`,
           );
           triggerRunningHubCancel();
         }
@@ -246,10 +249,18 @@
         ctx.strokeStyle = "#FFFFFF";
 
         ctx.beginPath();
-        ctx.moveTo(x, y + len); ctx.lineTo(x, y); ctx.lineTo(x + len, y);
-        ctx.moveTo(x + w - len, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + len);
-        ctx.moveTo(x + h - len); ctx.lineTo(x, y + h); ctx.lineTo(x + len, y + h);
-        ctx.moveTo(x + w - len, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - len);
+        ctx.moveTo(x, y + len);
+        ctx.lineTo(x, y);
+        ctx.lineTo(x + len, y);
+        ctx.moveTo(x + w - len, y);
+        ctx.lineTo(x + w, y);
+        ctx.lineTo(x + w, y + len);
+        ctx.moveTo(x + h - len);
+        ctx.lineTo(x, y + h);
+        ctx.lineTo(x + len, y + h);
+        ctx.moveTo(x + w - len, y + h);
+        ctx.lineTo(x + w, y + h);
+        ctx.lineTo(x + w, y + h - len);
         ctx.stroke();
         ctx.restore();
       }
@@ -262,7 +273,7 @@
           node.pos[0] - 2,
           node.pos[1] - 2,
           node.size[0] + 4,
-          node.size[1] + 4
+          node.size[1] + 4,
         );
         ctx.fillStyle = "#FF3344";
         ctx.font = "bold 11px sans-serif";
@@ -332,7 +343,7 @@
             <span>${key}</span>
             <input type="checkbox" data-key="${key}" ${config[key] ? "checked" : ""} style="cursor: pointer;">
           </label>
-        `
+        `,
           )
           .join("")}
         <button id="rh-import-cookies-btn" style="width: 100%; margin-top: 8px; padding: 6px; background: #2b2b36; border: 1px solid #00FF66; color: #00FF66; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold;">📋 Paste Cookies (JSON)</button>
