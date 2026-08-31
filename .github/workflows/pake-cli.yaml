@@ -170,7 +170,6 @@ jobs:
         shell: pwsh
         run: |
           $args = "${{ inputs.url }}", "--name", "${{ inputs.name }}"
-          $args += "--debug"
           $args += "--show-system-tray"
           $args += "--inject", "custom_r.js"
 
