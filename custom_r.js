@@ -1,3 +1,29 @@
+/* ==========================================================================
+ * RunningHub ComfyUI Desktop Wrapper — custom_r.js (HARDENED v2.0)
+ * --------------------------------------------------------------------------
+ * Changelog vs v1.x:
+ *  - [CRIT] All localStorage JSON reads go through safeParse() (no brick-on-corruption)
+ *  - [CRIT] __RH_EXT_INITIALIZED__ set only AFTER successful top-level init
+ *  - [CRIT] Telemetry block returns new Response(null, { status: 204 }) (spec-correct)
+ *  - [CRIT] HUD MutationObserver REMOVED (was unbounded leak + stutter source);
+ *           HUD/title now driven by the existing poller. Zero characterData observers.
+ *  - [HIGH] Per-feature prototype flags (__rh_render_attached / __rh_link_mode_set)
+ *  - [HIGH] API hook uses identity check (__rh_hooked_api) — self-heals on api swap
+ *  - [HIGH] executing payload handles object/null detail; dedupe resets on execution_start
+ *  - [HIGH] Ctrl+Shift+V ignores INPUT/TEXTAREA/contentEditable targets
+ *  - [HIGH] Script names HTML-escaped (esc()); menu style tag gets an id
+ *  - [HIGH] Breakpoint sets: parallel numeric Set → zero per-frame String() allocs
+ *  - [HIGH] drawNode: early-exit when features off; visibility culling; try/catch armor
+ *  - [MED]  Drag: Pointer Events + setPointerCapture + pointercancel (no orphans)
+ *  - [MED]  alert/prompt → toasts + non-blocking modal (no event-loop blocking)
+ *  - [MED]  cancel-button fallback scoped to .workflow-result-wrap, BUTTON-only
+ *  - [MED]  iframe-realm window.open patched idempotently (same-origin)
+ *  - [MED]  Cross-realm owner guard (__RH_IFRAME_ENGINE_OWNER__)
+ *  - [MED]  window.open URL match: parsed pathname/regex, no raw substring false positives
+ *  - [MED]  Removed will-change / image-rendering from canvas CSS (WebView2 stutter)
+ *  - [LOW]  window.__RH_EXT_TEARDOWN__ for diagnostic cleanup; all catches log
+ * ========================================================================== */
+
 (function () {
   "use strict";
 
