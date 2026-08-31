@@ -337,8 +337,94 @@
     };
   }
 
+// ==========================================
+// 7. Bottom-Center Task HUD Timer (Zero-Lag)
+// ==========================================
+(function initRunningHubTimerHUD() {
+  const hud = document.createElement('div');
+  hud.id = 'rh-timer-hud';
+  hud.innerHTML = `<span class="hud-icon">⏱️</span><span id="rh-hud-time">00:00</span>`;
+
+  const hudStyle = document.createElement('style');
+  hudStyle.textContent = `
+    #rh-timer-hud {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 999998;
+      background: rgba(18, 18, 22, 0.85);
+      border: 1px solid rgba(0, 255, 102, 0.4);
+      border-radius: 20px;
+      padding: 6px 18px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+      font-size: 15px;
+      font-weight: 700;
+      color: #00FF66;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      pointer-events: none;
+      user-select: none;
+    }
+    #rh-timer-hud .hud-icon {
+      font-size: 14px;
+    }
+  `;
+  document.head.appendChild(hudStyle);
+  document.body.appendChild(hud);
+
+  const timeDisplay = hud.querySelector('#rh-hud-time');
+  const targetSelector = '.workflow-result-wrap .rh-task-item .rh-task-status > div';
+
+  let observer = null;
+
+  function syncTimer() {
+    const rawTimerEl = document.querySelector(targetSelector);
+    if (!rawTimerEl) {
+      hud.style.display = 'none';
+      return;
+    }
+
+    const text = rawTimerEl.innerText.trim();
+    if (text) {
+      timeDisplay.textContent = text;
+      hud.style.display = 'flex';
+    } else {
+      hud.style.display = 'none';
+    }
+  }
+
+  // Native MutationObserver: only fires when RunningHub updates the text
+  function attachTimerObserver() {
+    const listWrap = document.querySelector('.workflow-result-wrap .list-wrap') || document.body;
+    
+    if (observer) observer.disconnect();
+    
+    observer = new MutationObserver(() => {
+      syncTimer();
+    });
+
+    observer.observe(listWrap, {
+      childList: true,
+      subtree: true,
+      characterData: true
+    });
+  }
+
+  // Poll lightly just to attach the observer when the sidebar DOM mounts
+  const timerInit = setInterval(() => {
+    if (document.querySelector('.workflow-result-wrap')) {
+      attachTimerObserver();
+      clearInterval(timerInit);
+    }
+  }, 1000);
+})();
+
   // ==========================================
-  // 7. Route & View Awareness + Init Poller
+  // 8. Route & View Awareness + Init Poller
   // ==========================================
   function isWorkflowCanvasActive() {
     const canvasElement = document.querySelector("canvas#graph-canvas");
