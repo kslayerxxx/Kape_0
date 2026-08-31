@@ -178,7 +178,7 @@
         ctx.moveTo(x + w - len, y);
         ctx.lineTo(x + w, y);
         ctx.lineTo(x + w, y + len);
-        ctx.moveTo(x, y + h - len);
+        ctx.moveTo(x + h - len);
         ctx.lineTo(x, y + h);
         ctx.lineTo(x + len, y + h);
         ctx.moveTo(x + w - len, y + h);
@@ -347,32 +347,32 @@
 
     const hudStyle = document.createElement("style");
     hudStyle.textContent = `
-    #rh-timer-hud {
-      position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 999998;
-      background: rgba(18, 18, 22, 0.85);
-      border: 1px solid rgba(0, 255, 102, 0.4);
-      border-radius: 20px;
-      padding: 6px 18px;
-      display: none;
-      align-items: center;
-      gap: 8px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
-      font-size: 15px;
-      font-weight: 700;
-      color: #00FF66;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(4px);
-      pointer-events: none;
-      user-select: none;
-    }
-    #rh-timer-hud .hud-icon {
-      font-size: 14px;
-    }
-  `;
+      #rh-timer-hud {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 999998;
+        background: rgba(18, 18, 22, 0.85);
+        border: 1px solid rgba(0, 255, 102, 0.4);
+        border-radius: 20px;
+        padding: 6px 18px;
+        display: none;
+        align-items: center;
+        gap: 8px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+        font-size: 15px;
+        font-weight: 700;
+        color: #00FF66;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        pointer-events: none;
+        user-select: none;
+      }
+      #rh-timer-hud .hud-icon {
+        font-size: 14px;
+      }
+    `;
     document.head.appendChild(hudStyle);
     document.body.appendChild(hud);
 
@@ -398,7 +398,6 @@
       }
     }
 
-    // Native MutationObserver: only fires when RunningHub updates the text
     function attachTimerObserver() {
       const listWrap =
         document.querySelector(".workflow-result-wrap .list-wrap") ||
@@ -417,7 +416,6 @@
       });
     }
 
-    // Poll lightly just to attach the observer when the sidebar DOM mounts
     const timerInit = setInterval(() => {
       if (document.querySelector(".workflow-result-wrap")) {
         attachTimerObserver();
