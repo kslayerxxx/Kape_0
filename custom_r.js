@@ -18,7 +18,7 @@
   const config = Object.assign(
     {},
     DEFAULT_CONFIG,
-    JSON.parse(localStorage.getItem(CONFIG_KEY) || "{}")
+    JSON.parse(localStorage.getItem(CONFIG_KEY) || "{}"),
   );
 
   function saveConfig() {
@@ -26,7 +26,9 @@
   }
 
   // Multi-script registry: [{ id, name, code, enabled }]
-  let customScripts = JSON.parse(localStorage.getItem(CUSTOM_SCRIPTS_KEY) || "[]");
+  let customScripts = JSON.parse(
+    localStorage.getItem(CUSTOM_SCRIPTS_KEY) || "[]",
+  );
 
   function saveCustomScripts() {
     localStorage.setItem(CUSTOM_SCRIPTS_KEY, JSON.stringify(customScripts));
@@ -48,7 +50,8 @@
   // ==========================================
   window.importCookiesFromJSON = function (jsonInput) {
     try {
-      const cookies = typeof jsonInput === "string" ? JSON.parse(jsonInput) : jsonInput;
+      const cookies =
+        typeof jsonInput === "string" ? JSON.parse(jsonInput) : jsonInput;
       if (!Array.isArray(cookies)) {
         alert("Invalid format: Expected a JSON array of cookies.");
         return false;
@@ -80,7 +83,9 @@
         count++;
       });
 
-      console.log(`[RH Importer] Imported ${count} cookies/tokens successfully.`);
+      console.log(
+        `[RH Importer] Imported ${count} cookies/tokens successfully.`,
+      );
       location.href = "https://www.runninghub.ai/";
       return true;
     } catch (err) {
@@ -127,7 +132,9 @@
     window.fetch = function (input, init) {
       const url = typeof input === "string" ? input : input?.url || "";
       if (blockedHosts.some((host) => url.includes(host))) {
-        return Promise.resolve(new Response("", { status: 204, statusText: "No Content" }));
+        return Promise.resolve(
+          new Response("", { status: 204, statusText: "No Content" }),
+        );
       }
       return originalFetch.apply(this, arguments);
     };
@@ -153,17 +160,28 @@
     if (window.api && typeof window.api.interrupt === "function") {
       window.api.interrupt();
     }
-    const cancelBtn = document.querySelector(".workflow-result-wrap .rh-task-item .rh-cancel-btn");
+    const cancelBtn = document.querySelector(
+      ".workflow-result-wrap .rh-task-item .rh-cancel-btn",
+    );
     if (cancelBtn) {
       cancelBtn.click();
       return;
     }
     const sidebar = document.querySelector(".workflow-result-wrap");
-    const toggleSidebarBtn = document.querySelector(".workflow-result-wrap .hide-btn");
-    if (toggleSidebarBtn && (!sidebar || sidebar.offsetWidth === 0 || sidebar.classList.contains("is-hide"))) {
+    const toggleSidebarBtn = document.querySelector(
+      ".workflow-result-wrap .hide-btn",
+    );
+    if (
+      toggleSidebarBtn &&
+      (!sidebar ||
+        sidebar.offsetWidth === 0 ||
+        sidebar.classList.contains("is-hide"))
+    ) {
       toggleSidebarBtn.click();
       setTimeout(() => {
-        const retryCancelBtn = document.querySelector(".workflow-result-wrap .rh-task-item .rh-cancel-btn");
+        const retryCancelBtn = document.querySelector(
+          ".workflow-result-wrap .rh-task-item .rh-cancel-btn",
+        );
         if (retryCancelBtn) retryCancelBtn.click();
       }, 150);
     }
@@ -177,13 +195,19 @@
         if (executingNodeId === lastExecutedNodeId) return;
         lastExecutedNodeId = executingNodeId;
 
-        if (config.autoCenterRunningNode && window.app?.graph && window.app?.canvas?.centerOnNode) {
+        if (
+          config.autoCenterRunningNode &&
+          window.app?.graph &&
+          window.app?.canvas?.centerOnNode
+        ) {
           const node = window.app.graph.getNodeById(executingNodeId);
           if (node) window.app.canvas.centerOnNode(node);
         }
 
         if (config.autoCancelBreakpoints && stopNodeIds.has(executingNodeId)) {
-          console.warn(`[RH Breakpoint] Reached stop node #${executingNodeId}. Halting.`);
+          console.warn(
+            `[RH Breakpoint] Reached stop node #${executingNodeId}. Halting.`,
+          );
           triggerRunningHubCancel();
         }
       });
@@ -194,48 +218,83 @@
   // 6. LiteGraph Canvas Hooks
   // ==========================================
   function applyCanvasHooks() {
-    if (!window.LGraphCanvas || !window.LGraphCanvas.prototype || window.LGraphCanvas.prototype.__rh_patched) return;
+    if (
+      !window.LGraphCanvas ||
+      !window.LGraphCanvas.prototype ||
+      window.LGraphCanvas.prototype.__rh_patched
+    )
+      return;
     window.LGraphCanvas.prototype.__rh_patched = true;
 
     const originalDrawNode = window.LGraphCanvas.prototype.drawNode;
     window.LGraphCanvas.prototype.drawNode = function (node, ctx) {
       originalDrawNode.apply(this, arguments);
 
-      const isExecuting = node.is_executing || node.running || this.node_executing === node;
-      const isBreakpoint = config.autoCancelBreakpoints && stopNodeIds.has(String(node.id));
+      const isExecuting =
+        node.is_executing || node.running || this.node_executing === node;
+      const isBreakpoint =
+        config.autoCancelBreakpoints && stopNodeIds.has(String(node.id));
 
       if (config.vectorNodeIndicator && isExecuting) {
         ctx.save();
-        const x = node.pos[0] - 6, y = node.pos[1] - 6, w = node.size[0] + 12, h = node.size[1] + 12;
-        ctx.lineWidth = 8; ctx.strokeStyle = "rgba(0, 255, 102, 0.25)";
+        const x = node.pos[0] - 6,
+          y = node.pos[1] - 6,
+          w = node.size[0] + 12,
+          h = node.size[1] + 12;
+        ctx.lineWidth = 8;
+        ctx.strokeStyle = "rgba(0, 255, 102, 0.25)";
         ctx.strokeRect(x - 2, y - 2, w + 4, h + 4);
-        ctx.lineWidth = 4; ctx.strokeStyle = "#00FF66"; ctx.strokeRect(x, y, w, h);
-        const len = 16; ctx.lineWidth = 5; ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = "#00FF66";
+        ctx.strokeRect(x, y, w, h);
+        const len = 16;
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = "#FFFFFF";
         ctx.beginPath();
-        ctx.moveTo(x, y + len); ctx.lineTo(x, y); ctx.lineTo(x + len, y);
-        ctx.moveTo(x + w - len, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + len);
-        ctx.moveTo(x + h - len); ctx.lineTo(x, y + h); ctx.lineTo(x + len, y + h);
-        ctx.moveTo(x + w - len, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - len);
+        ctx.moveTo(x, y + len);
+        ctx.lineTo(x, y);
+        ctx.lineTo(x + len, y);
+        ctx.moveTo(x + w - len, y);
+        ctx.lineTo(x + w, y);
+        ctx.lineTo(x + w, y + len);
+        ctx.moveTo(x + h - len);
+        ctx.lineTo(x, y + h);
+        ctx.lineTo(x + len, y + h);
+        ctx.moveTo(x + w - len, y + h);
+        ctx.lineTo(x + w, y + h);
+        ctx.lineTo(x + w, y + h - len);
         ctx.stroke();
         ctx.restore();
       }
 
       if (isBreakpoint) {
         ctx.save();
-        ctx.lineWidth = 4; ctx.strokeStyle = "#FF3344";
-        ctx.strokeRect(node.pos[0] - 2, node.pos[1] - 2, node.size[0] + 4, node.size[1] + 4);
-        ctx.fillStyle = "#FF3344"; ctx.font = "bold 11px sans-serif";
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = "#FF3344";
+        ctx.strokeRect(
+          node.pos[0] - 2,
+          node.pos[1] - 2,
+          node.size[0] + 4,
+          node.size[1] + 4,
+        );
+        ctx.fillStyle = "#FF3344";
+        ctx.font = "bold 11px sans-serif";
         ctx.fillText("🛑 AUTO-CANCEL STOP", node.pos[0], node.pos[1] - 8);
         ctx.restore();
       }
     };
 
-    const originalGetNodeMenuOptions = window.LGraphCanvas.prototype.getNodeMenuOptions;
+    const originalGetNodeMenuOptions =
+      window.LGraphCanvas.prototype.getNodeMenuOptions;
     window.LGraphCanvas.prototype.getNodeMenuOptions = function (node) {
-      const options = originalGetNodeMenuOptions ? originalGetNodeMenuOptions.apply(this, arguments) : [];
+      const options = originalGetNodeMenuOptions
+        ? originalGetNodeMenuOptions.apply(this, arguments)
+        : [];
       const isStopNode = stopNodeIds.has(String(node.id));
       options.push({
-        content: isStopNode ? "🛑 Remove Stop Breakpoint" : "🛑 Set Auto-Cancel Breakpoint",
+        content: isStopNode
+          ? "🛑 Remove Stop Breakpoint"
+          : "🛑 Set Auto-Cancel Breakpoint",
         callback: () => {
           if (isStopNode) stopNodeIds.delete(String(node.id));
           else stopNodeIds.add(String(node.id));
@@ -265,12 +324,15 @@
     const hud = document.createElement("div");
     hud.id = "rh-timer-hud";
     hud.innerHTML = `<span style="font-size:14px;">⏱️</span><span id="rh-hud-time">00:00</span>`;
-    hud.style.cssText = "position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:999998; background:rgba(18,18,22,0.85); border:1px solid rgba(0,255,102,0.4); border-radius:20px; padding:6px 18px; display:none; align-items:center; gap:8px; font-family:sans-serif; font-size:15px; font-weight:700; color:#00FF66; box-shadow:0 4px 16px rgba(0,0,0,0.6); pointer-events:none; user-select:none;";
+    hud.style.cssText =
+      "position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:999998; background:rgba(18,18,22,0.85); border:1px solid rgba(0,255,102,0.4); border-radius:20px; padding:6px 18px; display:none; align-items:center; gap:8px; font-family:sans-serif; font-size:15px; font-weight:700; color:#00FF66; box-shadow:0 4px 16px rgba(0,0,0,0.6); pointer-events:none; user-select:none;";
     document.body.appendChild(hud);
 
     const timeDisplay = hud.querySelector("#rh-hud-time");
     const observer = new MutationObserver(() => {
-      const raw = document.querySelector(".workflow-result-wrap .rh-task-item .rh-task-status > div");
+      const raw = document.querySelector(
+        ".workflow-result-wrap .rh-task-item .rh-task-status > div",
+      );
       if (raw && raw.innerText.trim()) {
         timeDisplay.textContent = raw.innerText.trim();
         hud.style.display = "flex";
@@ -279,8 +341,15 @@
       }
     });
 
-    const wrap = document.querySelector(".workflow-result-wrap .list-wrap") || document.querySelector(".workflow-result-wrap") || document.body;
-    observer.observe(wrap, { childList: true, subtree: true, characterData: true });
+    const wrap =
+      document.querySelector(".workflow-result-wrap .list-wrap") ||
+      document.querySelector(".workflow-result-wrap") ||
+      document.body;
+    observer.observe(wrap, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
   }
 
   // ==========================================
@@ -310,7 +379,7 @@
               <span>${key}</span>
               <input type="checkbox" data-core-key="${key}" ${config[key] ? "checked" : ""} style="cursor: pointer;">
             </label>
-          `
+          `,
             )
             .join("")}
         </div>
@@ -366,7 +435,7 @@
           </label>
           <span class="rh-delete-script" data-delete-idx="${idx}" style="cursor: pointer; color: #ff5555; font-size: 12px;" title="Delete">🗑️</span>
         </div>
-      `
+      `,
         )
         .join("");
 
@@ -384,11 +453,16 @@
     toggleBtn.onclick = () => {
       panel.style.display = panel.style.display === "none" ? "block" : "none";
     };
-    closeBtn.onclick = () => { panel.style.display = "none"; };
-    importCookiesBtn.onclick = () => { pasteAndImportCookies(); };
+    closeBtn.onclick = () => {
+      panel.style.display = "none";
+    };
+    importCookiesBtn.onclick = () => {
+      pasteAndImportCookies();
+    };
 
     addScriptBtn.onclick = () => {
-      const name = newScriptName.value.trim() || `Script #${customScripts.length + 1}`;
+      const name =
+        newScriptName.value.trim() || `Script #${customScripts.length + 1}`;
       const code = newScriptCode.value.trim();
       if (!code) {
         alert("Please enter script code.");
@@ -433,7 +507,10 @@
     if (window.api && !window.__rh_exec_hooked) {
       attachExecutionWatcher();
     }
-    if (document.querySelector(".workflow-result-wrap") && !document.getElementById("rh-timer-hud")) {
+    if (
+      document.querySelector(".workflow-result-wrap") &&
+      !document.getElementById("rh-timer-hud")
+    ) {
       initRunningHubTimerHUD();
     }
   }, 500);
