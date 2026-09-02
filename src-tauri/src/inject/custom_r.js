@@ -10,20 +10,28 @@
  *  - The /workflow/<id> page is an RH Vue SPA (#appVue). ComfyUI runs in a
  *    SAME-ORIGIN IFRAME, src="/comfyUI.html". The top frame has NO app /
  *    LGraphCanvas / api globals at all; the iframe has all of them.
- *  - The task sidebar (.workflow-result-wrap > .list-wrap > .rh-task-history,
- *    .rh-task-item, .rh-cancel-btn) lives in the TOP frame and ships
- *    COLLAPSED (class "hide", width 1px) → its buttons measure 0x0, so a
- *    rect-based visibility gate silently blocks the cancel click.
+ *  - The task sidebar (.workflow-result-wrap > .list-wrap > .rh-task-item >
+ *    .history-top-info > .rh-cancel-btn, text "Cancel") lives in the TOP
+ *    frame. Confirmed with a task running: the button is a DIV at 37x18 when
+ *    the panel is open. The panel ships COLLAPSED (class "hide", 1px wide),
+ *    and then every child measures 0x0 — so a rect-based visibility gate
+ *    silently blocks the click. Sibling nodes worth knowing:
+ *    .rh-task-status > .task-status-running ("Generating 00:15") and
+ *    .rh-task-id ("taskid: <id>"). Ant toasts mount at #rh-message-root.
  *  - Canvas instance: app.canvas (iframe). Instance property names that
  *    matter: clear_background is a BOOLEAN flag, clear_background_color is
  *    the colour ("#222"), links_render_mode (plural) is the spline mode,
  *    connections_width is 3 by default.
- *  - ds.offset is an array, ds.scale ~0.45 when zoomed out, and both
- *    ds.convertOffsetToCanvas and canvas.convertOffsetToCanvas exist → use
- *    the engine's own converter for overlay coordinates.
+ *  - ds.offset is an array, ds.scale is arbitrary (0.37 / 0.45 observed), and
+ *    both ds.convertOffsetToCanvas and canvas.convertOffsetToCanvas exist →
+ *    use the engine's own converter for overlay coordinates.
+ *  - The canvas backing store can disagree with its CSS box (attr 1053x802 vs
+ *    css 965x735 observed), i.e. the browser stretches the bitmap — overlay
+ *    coordinates must be scaled by that ratio. See viewportFactor().
  *  - node.is_executing does NOT exist → track the running node from api
  *    "executing" events. graph.getNodeById works with numeric ids.
- *  - api.interrupt exists; api.socket is null (RH proxies execution).
+ *  - api.interrupt exists. api.socket connects only while an instance runs
+ *    (wss://www.runninghub.ai/ws/c_instance?...), so events flow then.
  *
  * v2.5 changes (all from that probe):
  *  [F1] Frame model: the TOP frame owns everything and reaches into the
@@ -472,11 +480,13 @@
   function cancelDiagnostics() {
     const d = topDoc();
     const wrap = d.querySelector("[class*='workflow-result-wrap']");
+    const idEl = d.querySelector(".rh-task-id");
     return [
       "panel:" + (wrap ? (/(^|\s)hide(\s|$)/.test(wrap.className || "") ? "collapsed" : "open") : "MISSING"),
       "task-item:" + (d.querySelector(".rh-task-item") ? "yes" : "NO"),
       "cancel-btn:" + (d.querySelector(".rh-cancel-btn") ? "yes" : "NO"),
-      "history:" + d.querySelectorAll(".history-item").length,
+      "status:" + ((d.querySelector(".rh-task-item [class*='task-status-']") || {}).textContent || "-").trim().slice(0, 20),
+      "taskid:" + ((idEl && idEl.textContent) || "-").replace(/[^0-9]/g, "").slice(0, 20),
       "engine:" + (engineTarget ? (engineTarget.host ? "iframe" : "self") : "none")
     ].join(" ");
   }
@@ -826,6 +836,29 @@
     }
   }
 
+  // How many CSS pixels one canvas drawing-unit occupies.
+  //
+  // VERIFIED: the canvas backing store does NOT always match its CSS box.
+  // Probe with a task running: attr [1053,802] vs css [965,735] — the browser
+  // was stretching the bitmap by 0.916, so anything drawn at raw canvas
+  // coordinates sat up to ~80px off near the right edge. Two distinct cases:
+  //   fresh  → ComfyUI sized it as css*devicePixelRatio and pre-scaled its
+  //            own context by the same amount, so the factor is exactly 1
+  //   stale  → sizes disagree (mid-resize, or RH never re-sizes it), so the
+  //            factor is the css/backing ratio the browser is applying
+  // Detected from DOM measurements only; the LiteGraph context is never read
+  // or touched.
+  function viewportFactor(lgc, win) {
+    try {
+      const el = lgc.canvas, base = el.getBoundingClientRect();
+      if (!el.width || !base.width) return 1;
+      const dpr = Math.max(1, (win && win.devicePixelRatio) || 1);
+      if (Math.abs(el.width - base.width * dpr) <= 2) return 1;   // fresh
+      const f = base.width / el.width;                             // stretched
+      return (f > 0.2 && f < 5) ? f : 1;
+    } catch (_) { return 1; }
+  }
+
   // Graph-space node rect → viewport coordinates of the ENGINE document.
   // Uses LiteGraph's own converter when present (VERIFIED available on both
   // canvas and ds in RH's build) so the transform convention can never drift.
@@ -837,9 +870,9 @@
       if (!el || !lgc.ds || !node || !node.pos || !node.size) return null;
       const base = el.getBoundingClientRect();
       if (base.width <= 0 || base.height <= 0) return null;
-      const scaleX = el.width ? base.width / el.width : 1;
-      const scaleY = el.height ? base.height / el.height : 1;
       const s = lgc.ds.scale || 1;
+      const win = el.ownerDocument && el.ownerDocument.defaultView;
+      const f = viewportFactor(lgc, win);
 
       let cx, cy;
       let conv = null;
@@ -866,10 +899,10 @@
       const gh = collapsed ? 0 : node.size[1];
 
       return {
-        x: base.left + cx * scaleX,
-        y: base.top + (cy - titleH * s) * scaleY,
-        w: gw * s * scaleX,
-        h: (gh + titleH) * s * scaleY
+        x: base.left + cx * f,
+        y: base.top + (cy - titleH * s) * f,
+        w: gw * s * f,
+        h: (gh + titleH) * s * f
       };
     } catch (_) { return null; }
   }
@@ -1009,8 +1042,11 @@
   }
 
   // HUD source of truth is OUR run state (api events), because RH's task
-  // panel ships collapsed — its text is unreadable then. RH's own status text
-  // is used as a label when the panel happens to be open.
+  // panel ships collapsed — its text is unreadable then. When the panel IS
+  // open, RH's own status line is appended as a label.
+  // VERIFIED (task running): .rh-task-item > .rh-task-status >
+  // .task-status-running holds "Generating 00:15"; .rh-task-id holds
+  // "taskid: <id>".
   function updateTaskTimerHUD() {
     const hud = document.getElementById("rh-timer-hud");
     if (!hud) return;
@@ -1023,11 +1059,12 @@
         let label = own;
         const d = topDoc();
         const timeEl =
-          d.querySelector(".rh-task-item [class*='status'], .rh-task-item .rh-task-time") ||
-          d.querySelector("[class*='workflow-result-wrap'] .rh-task-time");
+          d.querySelector(".rh-task-item [class*='task-status-']") ||
+          d.querySelector(".rh-task-item .rh-task-status") ||
+          d.querySelector("[class*='workflow-result-wrap'] .rh-task-status");
         if (timeEl) {
-          const txt = (timeEl.innerText || "").trim();
-          if (txt && txt.length <= 24) label = own + "  ·  " + txt;
+          const txt = (timeEl.innerText || "").trim().replace(/\s+/g, " ");
+          if (txt && txt.length <= 28) label = own + "  ·  " + txt;
         }
         if (disp && disp.textContent !== label) disp.textContent = label;
         if (hud.style.display !== "flex") hud.style.display = "flex";
