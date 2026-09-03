@@ -170,7 +170,6 @@ jobs:
         run: |
           $args = "${{ inputs.url }}", "--name", "${{ inputs.name }}"
           $args += "--show-system-tray"
-          $args += "--debug"
 
           if ("${{ inputs.icon }}" -ne "") {
             $args += "--icon", "${{ inputs.icon }}"
